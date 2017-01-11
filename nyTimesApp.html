@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>NY Times App</title>
+  <script src="https://code.jquery.com/jquery.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+  <link href="https://gitcdn.github.io/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <!-- <link rel="stylesheet" type="text/css" href="style.css"> -->
+  <!-- <script type="text/javascript" src="assets/javascript/game.js"></script> -->
+  <style type="text/css">
+  .jumbotron, 
+  .panel-heading {
+    background-color: #337ab7;
+    color: white;
+  }
+  hr {
+    border: 1px solid #337ab7;
+  }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="jumbotron text-center">
+      <h1>New York Times Search</h1>
+    </div>
+    <div class="panel-group">
+      <div class="panel panel-primary">
+        <div class="panel-heading">Search Paramaters</div>
+        <div class="panel-body">
+          <form>
+            <div class="form-group">
+              <label for="searchTerm">Search Term:</label>
+              <input type="email" class="form-control" id="searchTerm">
+            </div>
+            <div class="form-group">
+              <label for="recordsSelect">Number of Records to Retrieve:</label>
+              <select class="form-control" id="recordsSelect">
+                <option class="recordsNumber">10</option>
+                <option class="recordsNumber">20</option>
+                <option class="recordsNumber">30</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="startYear">Start Year (optional):</label>
+              <input type="email" class="form-control" id="startYear">
+            </div>
+            <div class="form-group">
+              <label for="endYear">End Year (optional):</label>
+              <input type="email" class="form-control" id="endYear">
+            </div>
+            <button type="button" class="btn btn-primary btn-lg" id="searchButton">Search</button>
+            <button type="button" class="btn btn-primary btn-lg" id="clearResults">Clear Results</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="panel panel-primary">
+      <div class="panel-heading">Top Articles</div>
+      <div class="panel-body" id="articleDiv">
+      </div>
+    </div>
+  </div>
+  <script type="text/javascript">
+  $(document).ready(function() {
+    $("#searchButton").on("click", function() {
+      var url = "https://api.nytimes.com/svc/search/v2/articlesearch.json";
+      var startDate = parseInt($("#startYear").val() + "0101");
+      var endDate = parseInt($("#endYear").val() + "0101");
+      var searchTerm = $("#searchTerm").val();
+      // note that this will return sets of 10 objects starting with page 0
+      var numRecords = parseInt(($("#recordsSelect").val() / 10) - 1);
+
+      // making sure mandatory fields are filled before fetching results
+      if (searchTerm == "") {
+        alert("Enter a search item");
+        return;
+      }
+
+      url += '?' + $.param({
+        'q': searchTerm,
+      });
+      // user entered start date
+      if (startDate.toString().length == 8) {
+        url += "&";
+        url += $.param({
+          'begin_date': startDate,
+        });
+      }
+      // user entered end date
+      if (endDate.toString().length == 8) {        
+        url += "&";
+        url += $.param({
+          'end_date': endDate,
+        });
+      }
+
+      url += "&";
+      url += $.param({
+        //'fl': "web_url,snippet,_id,headline,pub_date,multimedia,section_name",
+        'hl': "true",
+        'page': numRecords,
+        'api-key': "2a30d044e3a74d7ba3628ad957b82814",
+      });
+      console.log(url);
+      $.ajax({
+        url: url,
+        method: 'GET',
+      }).done(function(result) {
+        var docs = result.response.docs;
+
+        for (i = 0; i < docs.length; i++) {
+          var parentPanel = $("<div>");
+          var contentDiv = $("<div>");
+          var link = $("<a>");
+          var pubDate = $("<div>");
+          var id = $("<div>");
+          var section = $("<div>");
+          var image = $("<img>");
+          // have to append before you can set attributes and html content
+          // until the append call, the items don't exist on the page yet
+          $("#articleDiv").append(parentPanel).append(image).append(contentDiv).append(section).append(pubDate).append(id).append(link);
+          parentPanel.attr("class", "panel-heading");
+          // docs[i].headline returns many different objects and they aren't always the same
+          // .main is always present
+          parentPanel.html("<h4>Headline: " + docs[i].headline.main + "</h4>");
+          contentDiv.attr("class", "panel-body");
+          contentDiv.html("Snippet: " + docs[i].snippet);
+          section.attr("class", "panel-body");
+          section.html("Section: " + docs[i].section_name);
+          pubDate.attr("class", "panel-body");
+          pubDate.html("Date published: " + docs[i].pub_date);
+          id.html("unique ID: " + docs[i]._id);
+          id.attr("class", "panel-body");
+          link.attr("href", docs[i].web_url);
+          link.attr("class", "panel-body");
+          link.html("Get the full story here<hr>");
+          // not all returned objects have images
+          // multimedia[0] is small image, multimedia[1] is large image, multimedia[2] is thumbnail
+          if (docs[i].multimedia.length == 3) {
+            image.attr("src","http://www.nytimes.com/" + docs[i].multimedia[2].url);
+            image.attr("alt", "image for " + docs[i]._id);
+          }
+          console.log(docs[i].headline);
+        }
+        //console.log(result);
+      }).fail(function(err) {
+        throw err;
+      });
+    });
+
+    $("#clearResults").on("click", function() {
+      $("#startYear").val("");
+      $("#endYear").val("");
+      $("#searchTerm").val("");
+      $("#recordsSelect").val("");
+      $("#articleDiv").empty();
+    });
+
+    // End of back end team's script
+
+  });
+  </script>
+</body>
+
+</html>
